@@ -199,7 +199,7 @@ with hc3:
         for d in cur_dues(): d["status"]="done"
         save(); st.rerun()
 with hc4:
-    if st.button("↺ Reset", use_container_width=True):
+    if st.button("⏳ Mark All Pending", use_container_width=True):
         for d in cur_dues(): d["status"]="pending"
         save(); st.rerun()
 
@@ -273,9 +273,15 @@ with tab1:
         ''',unsafe_allow_html=True)
 
     st.divider()
-    if st.button("✅  Mark All as Paid",use_container_width=True):
-        for d in cur_dues(): d["status"]="done"
-        save(); st.rerun()
+    oa1, oa2 = st.columns(2)
+    with oa1:
+        if st.button("✅  Mark All as Paid", use_container_width=True, key="ov_paid"):
+            for d in cur_dues(): d["status"]="done"
+            save(); st.rerun()
+    with oa2:
+        if st.button("⏳  Mark All as Pending", use_container_width=True, key="ov_pend"):
+            for d in cur_dues(): d["status"]="pending"
+            save(); st.rerun()
 
 # ════════════════════════════════════════════════════════════════════════
 # DUES
