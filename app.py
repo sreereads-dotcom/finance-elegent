@@ -303,8 +303,42 @@ with tab2:
             done_g=sum(1 for d in aig if d["status"]=="done")
             pct_g=done_g/len(aig) if aig else 0
 
-            with st.expander(f"{g['name']} — {fmt(g_tot)} ({done_g}/{len(aig)} paid)", expanded=True):
-                st.markdown(f'<div style="height:4px;border-radius:99px;background:rgba(255,255,255,.06);overflow:hidden;margin-bottom:12px"><div style="height:100%;width:{int(pct_g*100)}%;background:{"#00e676" if pct_g==1 else g["color"]};border-radius:99px"></div></div>',unsafe_allow_html=True)
+
+            # ── Custom collapsible group header (no st.expander to avoid arrow_down bug) ──
+            ck = f"grp_{g['name']}"
+            if ck not in st.session_state: st.session_state[ck] = True
+            is_open = st.session_state[ck]
+            col_g = "#00e676" if pct_g==1 else g["color"]
+            badge_txt = "all paid" if pct_g==1 else f"{done_g}/{len(aig)} paid"
+            arrow = "▼" if is_open else "▶"
+
+            gh1, gh2 = st.columns([5,1])
+            with gh1:
+                st.markdown(f"""
+                <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);
+                border-radius:12px 12px {'0 0' if is_open else '12px 12px'};padding:12px 16px;margin-top:4px">
+                  <div style="display:flex;align-items:center;justify-content:space-between">
+                    <div style="display:flex;align-items:center;gap:10px">
+                      <div style="width:10px;height:10px;border-radius:3px;background:{g['color']}"></div>
+                      <span style="font-weight:700;font-size:15px;color:white">{g['name']}</span>
+                      <span style="font-size:10px;padding:2px 8px;border-radius:99px;
+                      background:{col_g}22;color:{col_g};font-weight:700">{badge_txt}</span>
+                    </div>
+                    <span style="font-family:'JetBrains Mono',monospace;font-weight:700;font-size:15px;color:white">{fmt(g_tot)}</span>
+                  </div>
+                  <div style="height:4px;border-radius:99px;background:rgba(255,255,255,.06);overflow:hidden;margin-top:10px">
+                    <div style="height:100%;width:{int(pct_g*100)}%;background:{col_g};border-radius:99px"></div>
+                  </div>
+                </div>
+                """, unsafe_allow_html=True)
+            with gh2:
+                st.write("")
+                if st.button(arrow, key=f"tog_{g['name']}_{sec_type}", use_container_width=True):
+                    st.session_state[ck] = not is_open; st.rerun()
+
+            if is_open:
+                st.markdown(f'''<div style="background:rgba(255,255,255,.015);border:1px solid rgba(255,255,255,.06);
+                border-top:none;border-radius:0 0 12px 12px;padding:10px 14px 14px;margin-bottom:8px">''',unsafe_allow_html=True)
                 changed=False
                 for due in gd:
                     ri=next(i for i,d in enumerate(all_d) if d["id"]==due["id"])
@@ -321,7 +355,10 @@ with tab2:
                             cur_dues()[ri]["status"]=CYCLE[due["status"]]; save(); st.rerun()
                     with r4:
                         if st.button("🗑",key=f"dd_{due['id']}"): cur_dues().pop(ri); save(); st.rerun()
+                st.markdown('</div>',unsafe_allow_html=True)
                 if changed: save()
+            else:
+                st.markdown("<div style='margin-bottom:8px'></div>",unsafe_allow_html=True)
         st.markdown("<div style='margin-bottom:8px'></div>",unsafe_allow_html=True)
 
 # ════════════════════════════════════════════════════════════════════════
