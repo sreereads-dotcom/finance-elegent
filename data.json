@@ -1,0 +1,170 @@
+{
+  "months": {
+    "Apr 2026": {
+      "income": [
+        {
+          "id": 1,
+          "name": "Salary",
+          "amt": 0
+        }
+      ],
+      "dues": [
+        {
+          "id": 1,
+          "name": "Rent (main)",
+          "amt": 13000,
+          "group": "Rent",
+          "note": "",
+          "recur": true,
+          "status": "pending"
+        },
+        {
+          "id": 2,
+          "name": "Rent (2nd)",
+          "amt": 6750,
+          "group": "Rent",
+          "note": "5750 + 1000",
+          "recur": true,
+          "status": "pending"
+        },
+        {
+          "id": 3,
+          "name": "SBI Loan",
+          "amt": 34800,
+          "group": "Loan / EMI",
+          "note": "",
+          "recur": true,
+          "status": "pending"
+        },
+        {
+          "id": 4,
+          "name": "KSFE 1",
+          "amt": 6400,
+          "group": "KSFE",
+          "note": "",
+          "recur": true,
+          "status": "pending"
+        },
+        {
+          "id": 5,
+          "name": "KSFE 2",
+          "amt": 13812,
+          "group": "KSFE",
+          "note": "",
+          "recur": true,
+          "status": "pending"
+        },
+        {
+          "id": 6,
+          "name": "KSFE 3",
+          "amt": 7983,
+          "group": "KSFE",
+          "note": "",
+          "recur": true,
+          "status": "pending"
+        },
+        {
+          "id": 7,
+          "name": "School Van",
+          "amt": 2000,
+          "group": "Other",
+          "note": "",
+          "recur": true,
+          "status": "pending"
+        },
+        {
+          "id": 8,
+          "name": "SIP",
+          "amt": 10000,
+          "group": "Investment",
+          "note": "",
+          "recur": true,
+          "status": "pending"
+        },
+        {
+          "id": 9,
+          "name": "Prabeena RD",
+          "amt": 1000,
+          "group": "RD / Personal",
+          "note": "RD payment",
+          "recur": true,
+          "status": "pending"
+        },
+        {
+          "id": 10,
+          "name": "Ranganswami RD",
+          "amt": 1000,
+          "group": "RD / Personal",
+          "note": "RD payment",
+          "recur": true,
+          "status": "pending"
+        },
+        {
+          "id": 11,
+          "name": "SBI Credit Card",
+          "amt": 7254,
+          "group": "Credit Card",
+          "note": "",
+          "recur": true,
+          "status": "pending"
+        },
+        {
+          "id": 12,
+          "name": "AU Credit Card",
+          "amt": 359,
+          "group": "Credit Card",
+          "note": "",
+          "recur": true,
+          "status": "pending"
+        },
+        {
+          "id": 13,
+          "name": "ICICI Card 1",
+          "amt": 3355,
+          "group": "Credit Card",
+          "note": "",
+          "recur": true,
+          "status": "pending"
+        },
+        {
+          "id": 14,
+          "name": "ICICI Card 2",
+          "amt": 0,
+          "group": "Credit Card",
+          "note": "Update amount",
+          "recur": true,
+          "status": "pending"
+        },
+        {
+          "id": 15,
+          "name": "Achan",
+          "amt": 3000,
+          "group": "Other",
+          "note": "",
+          "recur": true,
+          "status": "done"
+        },
+        {
+          "id": 16,
+          "name": "Amma",
+          "amt": 2500,
+          "group": "Other",
+          "note": "",
+          "recur": true,
+          "status": "done"
+        },
+        {
+          "id": 17,
+          "name": "GVR",
+          "amt": 3000,
+          "group": "Other",
+          "note": "",
+          "recur": true,
+          "status": "done"
+        }
+      ]
+    }
+  },
+  "cur_month": "Apr 2026",
+  "next_id": 100
+}
