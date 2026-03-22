@@ -206,7 +206,7 @@ with hc4:
 st.divider()
 
 # ── TABS ──────────────────────────────────────────────────────────────
-tab1,tab2,tab3,tab4 = st.tabs(["📊  Overview","📋  Dues","➕  Add Item","📈  Analysis"])
+tab1,tab2,tab3,tab4,tab5 = st.tabs(["📊  Overview","📋  Dues","➕  Add Item","📈  Analysis","📑  Reports"])
 
 # ════════════════════════════════════════════════════════════════════════
 # OVERVIEW
@@ -224,12 +224,18 @@ with tab1:
         with c3:
             if st.button("🗑",key=f"di_{item['id']}"): cur_income().pop(i); save(); st.rerun()
     if changed: save()
-    with st.expander("➕ Add income source"):
+    # custom toggle — no st.expander to avoid arrow_right bug
+    if "show_add_inc" not in st.session_state: st.session_state.show_add_inc = False
+    if st.button("➕  Add income source", key="toggle_add_inc", use_container_width=True):
+        st.session_state.show_add_inc = not st.session_state.show_add_inc; st.rerun()
+    if st.session_state.show_add_inc:
+        st.markdown('<div style="background:rgba(255,255,255,.02);border:1px solid rgba(255,45,120,.15);border-radius:10px;padding:14px 16px;margin-top:4px">', unsafe_allow_html=True)
         ai1,ai2=st.columns([3,2])
         with ai1: ni_n=st.text_input("Name",key="ni_n",placeholder="Bonus, Rental...")
         with ai2: ni_a=st.number_input("Amount",min_value=0,key="ni_a",value=0,step=1000)
         if st.button("Add Source",key="add_inc"):
             if ni_n: cur_income().append({"id":get_id(),"name":ni_n,"amt":ni_a}); save(); st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
 
     st.divider()
     c=calcs()
@@ -482,3 +488,286 @@ with tab4:
                     st.session_state.data=restored; save_data(restored); st.success("✅ Restored!"); st.rerun()
                 else: st.error("Invalid backup file.")
             except Exception as e: st.error(f"Error: {e}")
+
+
+# ════════════════════════════════════════════════════════════════════════
+# REPORTS — Consolidated date range view
+# ════════════════════════════════════════════════════════════════════════
+with tab5:
+    st.markdown('''<div style="font-size:12px;font-weight:700;text-transform:uppercase;
+    letter-spacing:.12em;color:rgba(255,255,255,.4);margin:0 0 16px">
+    <span style="color:#ff2d78">●</span> CONSOLIDATED REPORT</div>''', unsafe_allow_html=True)
+
+    all_months = list(D()["months"].keys())
+
+    if len(all_months) < 1:
+        st.info("No data yet. Add some months first.")
+    else:
+        # ── FILTERS ──
+        f1, f2, f3 = st.columns(3)
+        with f1:
+            from_month = st.selectbox("From Month", all_months,
+                                       index=len(all_months)-1, key="rep_from")
+        with f2:
+            to_month   = st.selectbox("To Month",   all_months,
+                                       index=0, key="rep_to")
+        with f3:
+            # Build filter options: All Groups + All Items + individual items
+            all_item_names = []
+            for m in all_months:
+                for d in D()["months"][m]["dues"]:
+                    if d["name"] not in all_item_names:
+                        all_item_names.append(d["name"])
+
+            filter_options = (
+                ["📊 All Items", "── By Group ──"] +
+                GROUP_NAMES +
+                ["── By Item ──"] +
+                sorted(all_item_names)
+            )
+            selected_filter = st.selectbox("Filter by Group / Item", filter_options, key="rep_filter")
+
+        # ── BUILD MONTH RANGE ──
+        # Months stored newest first — reverse to get chronological
+        ordered = list(reversed(all_months))
+        try:
+            fi = ordered.index(from_month)
+            ti = ordered.index(to_month)
+            if fi > ti: fi, ti = ti, fi   # swap if reversed
+            selected_months = ordered[fi:ti+1]
+        except ValueError:
+            selected_months = all_months
+
+        if not selected_months:
+            st.warning("No months in selected range.")
+        else:
+            # ── COLLECT DATA ──
+            rows = []
+            for m in selected_months:
+                mdata = D()["months"].get(m, {})
+                dues  = mdata.get("dues", [])
+                inc   = sum(i["amt"] for i in mdata.get("income", []))
+                for d in dues:
+                    # apply filter
+                    if selected_filter == "📊 All Items":
+                        pass
+                    elif selected_filter in GROUP_NAMES:
+                        if d["group"] != selected_filter: continue
+                    elif selected_filter.startswith("──"):
+                        pass
+                    else:
+                        if d["name"] != selected_filter: continue
+                    rows.append({
+                        "month":  m,
+                        "name":   d["name"],
+                        "group":  d["group"],
+                        "type":   GMAP.get(d["group"], {}).get("type","expense"),
+                        "amt":    d["amt"],
+                        "status": d["status"],
+                        "income": inc,
+                    })
+
+            if not rows:
+                st.info("No data for selected filter and range.")
+            else:
+                import pandas as pd
+
+                df = pd.DataFrame(rows)
+
+                # ── SUMMARY CARDS ──
+                total_amt  = df["amt"].sum()
+                paid_amt   = df[df["status"]=="done"]["amt"].sum()
+                pend_amt   = df[df["status"]=="pending"]["amt"].sum()
+                over_amt   = df[df["status"]=="overdue"]["amt"].sum()
+                n_months   = len(selected_months)
+
+                st.markdown(f'''
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px">
+                  <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,45,120,.15);border-radius:14px;padding:14px 16px">
+                    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.4);margin-bottom:6px">Total Amount</div>
+                    <div style="font-size:22px;font-weight:700;font-family:JetBrains Mono,monospace;color:white">{fmt(total_amt)}</div>
+                    <div style="font-size:11px;color:rgba(255,255,255,.35);margin-top:4px">{n_months} month(s)</div>
+                  </div>
+                  <div style="background:rgba(255,255,255,.03);border:1px solid rgba(0,230,118,.15);border-radius:14px;padding:14px 16px">
+                    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.4);margin-bottom:6px">Paid</div>
+                    <div style="font-size:22px;font-weight:700;font-family:JetBrains Mono,monospace;color:#00e676">{fmt(paid_amt)}</div>
+                    <div style="font-size:11px;color:rgba(255,255,255,.35);margin-top:4px">{len(df[df["status"]=="done"])} entries</div>
+                  </div>
+                  <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,171,0,.15);border-radius:14px;padding:14px 16px">
+                    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.4);margin-bottom:6px">Pending</div>
+                    <div style="font-size:22px;font-weight:700;font-family:JetBrains Mono,monospace;color:#ffab00">{fmt(pend_amt)}</div>
+                    <div style="font-size:11px;color:rgba(255,255,255,.35);margin-top:4px">{len(df[df["status"]=="pending"])} entries</div>
+                  </div>
+                  <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,23,68,.15);border-radius:14px;padding:14px 16px">
+                    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.4);margin-bottom:6px">Monthly Avg</div>
+                    <div style="font-size:22px;font-weight:700;font-family:JetBrains Mono,monospace;color:#ff2d78">{fmt(total_amt/n_months if n_months else 0)}</div>
+                    <div style="font-size:11px;color:rgba(255,255,255,.35);margin-top:4px">per month</div>
+                  </div>
+                </div>
+                ''', unsafe_allow_html=True)
+
+                st.divider()
+
+                # ── MONTH-WISE VERTICAL TABLE ──
+                st.markdown('''<div style="font-size:12px;font-weight:700;text-transform:uppercase;
+                letter-spacing:.12em;color:rgba(255,255,255,.4);margin:0 0 12px">
+                MONTH-WISE BREAKDOWN</div>''', unsafe_allow_html=True)
+
+                for m in selected_months:
+                    m_rows = [r for r in rows if r["month"]==m]
+                    if not m_rows: continue
+                    m_total = sum(r["amt"] for r in m_rows)
+                    m_paid  = sum(r["amt"] for r in m_rows if r["status"]=="done")
+                    m_pend  = sum(r["amt"] for r in m_rows if r["status"]=="pending")
+                    m_over  = sum(r["amt"] for r in m_rows if r["status"]=="overdue")
+                    m_pct   = int(m_paid/m_total*100) if m_total else 0
+                    bar_col = "#00e676" if m_pct==100 else "#ffab00" if m_pct>=50 else "#ff2d78"
+
+                    # Month header
+                    st.markdown(f'''
+                    <div style="background:linear-gradient(135deg,rgba(255,45,120,.08),rgba(160,32,240,.05));
+                    border:1px solid rgba(255,45,120,.2);border-radius:12px;padding:12px 16px;margin-bottom:2px">
+                      <div style="display:flex;justify-content:space-between;align-items:center">
+                        <div>
+                          <span style="font-size:15px;font-weight:700;color:white">{m}</span>
+                          <span style="font-size:11px;color:rgba(255,255,255,.4);margin-left:10px">{len(m_rows)} item(s)</span>
+                        </div>
+                        <div style="display:flex;gap:16px;align-items:center">
+                          <span style="font-size:11px;color:#00e676">✓ {fmt(m_paid)}</span>
+                          <span style="font-size:11px;color:#ffab00">⏳ {fmt(m_pend)}</span>
+                          {"<span style=\'font-size:11px;color:#ff1744\'>⚠ " + fmt(m_over) + "</span>" if m_over>0 else ""}
+                          <span style="font-family:JetBrains Mono,monospace;font-weight:700;font-size:16px;color:white">{fmt(m_total)}</span>
+                        </div>
+                      </div>
+                      <div style="height:4px;border-radius:99px;background:rgba(255,255,255,.06);overflow:hidden;margin-top:8px">
+                        <div style="height:100%;width:{m_pct}%;background:{bar_col};border-radius:99px"></div>
+                      </div>
+                    </div>
+                    ''', unsafe_allow_html=True)
+
+                    # Item rows for this month
+                    with st.container():
+                        st.markdown('<div style="background:rgba(255,255,255,.015);border:1px solid rgba(255,255,255,.05);border-top:none;border-radius:0 0 12px 12px;padding:6px 14px 10px;margin-bottom:12px">', unsafe_allow_html=True)
+                        for r in m_rows:
+                            s_col = "#00e676" if r["status"]=="done" else "#ff1744" if r["status"]=="overdue" else "#ffab00"
+                            s_lbl = "✓ Paid" if r["status"]=="done" else "⚠ Overdue" if r["status"]=="overdue" else "⏳ Pending"
+                            gtype = r["type"]
+                            g_col = "#2979ff" if gtype=="savings" else "#ff2d78"
+                            fade  = "opacity:.5;" if r["status"]=="done" else ""
+                            st.markdown(f'''
+                            <div style="display:flex;align-items:center;justify-content:space-between;
+                            padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04);{fade}">
+                              <div style="display:flex;align-items:center;gap:10px;min-width:0">
+                                {logo_img(r["name"],28)}
+                                <div>
+                                  <div style="font-weight:600;font-size:13px">{r["name"]}</div>
+                                  <div style="font-size:10px;color:rgba(255,255,255,.35)">{r["group"]}
+                                    <span style="margin-left:4px;padding:1px 5px;border-radius:4px;
+                                    background:{g_col}1a;color:{g_col};font-weight:700">
+                                    {"SAV" if gtype=="savings" else "EXP"}</span>
+                                  </div>
+                                </div>
+                              </div>
+                              <div style="display:flex;align-items:center;gap:14px;flex-shrink:0">
+                                <span style="font-size:11px;color:{s_col};font-weight:600">{s_lbl}</span>
+                                <span style="font-family:JetBrains Mono,monospace;font-weight:700;font-size:14px">{fmt(r["amt"])}</span>
+                              </div>
+                            </div>
+                            ''', unsafe_allow_html=True)
+                        st.markdown('</div>', unsafe_allow_html=True)
+
+                st.divider()
+
+                # ── TREND CHART ──
+                if len(selected_months) > 1:
+                    st.markdown('''<div style="font-size:12px;font-weight:700;text-transform:uppercase;
+                    letter-spacing:.12em;color:rgba(255,255,255,.4);margin:0 0 12px">
+                    MONTHLY TREND</div>''', unsafe_allow_html=True)
+
+                    trend_data = []
+                    for m in selected_months:
+                        m_rows2 = [r for r in rows if r["month"]==m]
+                        trend_data.append({
+                            "Month":   m,
+                            "Total":   sum(r["amt"] for r in m_rows2),
+                            "Paid":    sum(r["amt"] for r in m_rows2 if r["status"]=="done"),
+                            "Pending": sum(r["amt"] for r in m_rows2 if r["status"]=="pending"),
+                        })
+                    df_trend = pd.DataFrame(trend_data)
+
+                    fig_t = go.Figure()
+                    fig_t.add_trace(go.Bar(name="Paid",    x=df_trend["Month"], y=df_trend["Paid"],    marker_color="#00e676", opacity=0.9))
+                    fig_t.add_trace(go.Bar(name="Pending", x=df_trend["Month"], y=df_trend["Pending"], marker_color="#ffab00", opacity=0.9))
+                    fig_t.add_trace(go.Scatter(name="Total", x=df_trend["Month"], y=df_trend["Total"],
+                                               mode="lines+markers",
+                                               line=dict(color="#ff2d78", width=2, dash="dot"),
+                                               marker=dict(size=7, color="#ff2d78")))
+                    fig_t.update_layout(
+                        barmode="stack",
+                        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                        font=dict(family="Outfit", color="rgba(255,255,255,.7)"),
+                        height=320,
+                        xaxis=dict(gridcolor="rgba(255,255,255,.04)", tickfont=dict(size=11)),
+                        yaxis=dict(gridcolor="rgba(255,255,255,.04)", tickprefix="₹", tickfont=dict(size=11)),
+                        legend=dict(orientation="h", yanchor="bottom", y=1.02,
+                                   font=dict(size=11), bgcolor="rgba(0,0,0,0)"),
+                        margin=dict(t=30,b=0), bargap=0.3
+                    )
+                    st.plotly_chart(fig_t, use_container_width=True)
+
+                st.divider()
+
+                # ── ITEM-WISE SUMMARY ──
+                st.markdown('''<div style="font-size:12px;font-weight:700;text-transform:uppercase;
+                letter-spacing:.12em;color:rgba(255,255,255,.4);margin:0 0 12px">
+                ITEM-WISE TOTAL ACROSS SELECTED MONTHS</div>''', unsafe_allow_html=True)
+
+                item_summary = {}
+                for r in rows:
+                    k = r["name"]
+                    if k not in item_summary:
+                        item_summary[k] = {"group":r["group"],"type":r["type"],"total":0,"paid":0,"count":0}
+                    item_summary[k]["total"] += r["amt"]
+                    item_summary[k]["paid"]  += r["amt"] if r["status"]=="done" else 0
+                    item_summary[k]["count"] += 1
+
+                sorted_items = sorted(item_summary.items(), key=lambda x: -x[1]["total"])
+                grand_total  = sum(v["total"] for v in item_summary.values())
+
+                for name, info in sorted_items:
+                    pct_i  = int(info["paid"]/info["total"]*100) if info["total"] else 0
+                    bar_c  = "#00e676" if pct_i==100 else "#ffab00" if pct_i>=50 else "#ff2d78"
+                    width_pct = int(info["total"]/grand_total*100) if grand_total else 0
+                    gtype  = info["type"]; g_col = "#2979ff" if gtype=="savings" else "#ff2d78"
+                    st.markdown(f'''
+                    <div style="margin-bottom:10px">
+                      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+                        <div style="display:flex;align-items:center;gap:8px">
+                          {logo_img(name, 26)}
+                          <span style="font-weight:600;font-size:13px">{name}</span>
+                          <span style="font-size:10px;color:rgba(255,255,255,.35)">{info["group"]}</span>
+                          <span style="font-size:10px;padding:1px 6px;border-radius:4px;
+                          background:{g_col}1a;color:{g_col};font-weight:700">
+                          {"SAV" if gtype=="savings" else "EXP"}</span>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:12px">
+                          <span style="font-size:11px;color:rgba(255,255,255,.4)">{info["count"]} month(s)</span>
+                          <span style="font-family:JetBrains Mono,monospace;font-weight:700;font-size:14px">{fmt(info["total"])}</span>
+                        </div>
+                      </div>
+                      <div style="height:6px;border-radius:99px;background:rgba(255,255,255,.06);overflow:hidden">
+                        <div style="height:100%;width:{width_pct}%;background:linear-gradient(90deg,{bar_c},{bar_c}88);border-radius:99px"></div>
+                      </div>
+                    </div>
+                    ''', unsafe_allow_html=True)
+
+                st.divider()
+                st.markdown(f'''
+                <div style="display:flex;justify-content:space-between;align-items:center;
+                padding:14px 18px;background:rgba(255,45,120,.06);border:1px solid rgba(255,45,120,.2);
+                border-radius:12px">
+                  <span style="font-weight:700;font-size:15px">Grand Total · {from_month} → {to_month}</span>
+                  <span style="font-family:JetBrains Mono,monospace;font-weight:800;font-size:22px;
+                  color:#ff2d78">{fmt(grand_total)}</span>
+                </div>
+                ''', unsafe_allow_html=True)
