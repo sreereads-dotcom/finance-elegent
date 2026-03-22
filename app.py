@@ -303,7 +303,7 @@ with tab2:
             done_g=sum(1 for d in aig if d["status"]=="done")
             pct_g=done_g/len(aig) if aig else 0
 
-            with st.expander(f"  {g['name']}  —  {fmt(g_tot)}    ({done_g}/{len(aig)} paid)",expanded=True):
+            with st.expander(f"{g['name']} — {fmt(g_tot)} ({done_g}/{len(aig)} paid)", expanded=True):
                 st.markdown(f'<div style="height:4px;border-radius:99px;background:rgba(255,255,255,.06);overflow:hidden;margin-bottom:12px"><div style="height:100%;width:{int(pct_g*100)}%;background:{"#00e676" if pct_g==1 else g["color"]};border-radius:99px"></div></div>',unsafe_allow_html=True)
                 changed=False
                 for due in gd:
